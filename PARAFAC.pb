@@ -7,7 +7,7 @@ UsePNGImageEncoder()
 IncludeFile "matrix.pb"
 
 ;{ Init
-Structure xy ;Paar Structure für alle möglichen Wertepaar-Felder
+Structure xy ;Paar Structure fÃ¼r alle mÃ¶glichen Wertepaar-Felder
   x.d
   y.d
 EndStructure
@@ -56,10 +56,10 @@ Global drawnumber.i=-1
 Global rmse.d=0
 Global ratio.d=1
 Global old_ssq.d=1
-Global ex_start.l
-Global em_start.l
-Global em_end.l
-Global ex_end.l
+Global ex_start.d
+Global em_start.d
+Global em_end.d
+Global ex_end.d
 Global nonneg_alt.b=1
 Global nonneg.b=1
 Global n_em.l
@@ -207,10 +207,10 @@ Procedure Open_Window_0()
     ;SpinGadget(#Spin_em_start, 180, 70, 100, 20, 0, 5000, #PB_Spin_Numeric)
     ;SetGadgetState(#Spin_em_start,n_ex)
     TextGadget(#Text_ex_start, 10, 73, 100, 20, "Excitation Start [nm]")
-    TextGadget(#Text_generic_start, 10, 73, 100, 20, "Generic Start")
+   ; TextGadget(#Text_generic_start, 10, 73, 100, 20, "Generic Start")
     TextGadget(#Text_em_start, 10, 93, 100, 20, "Emission Start [nm]")
     TextGadget(#Text_ex_end, 210, 73, 100, 20, "Excitation End [nm]")
-    TextGadget(#Text_generic_end, 210, 73, 100, 20, "Generic End")
+    ;TextGadget(#Text_generic_end, 210, 73, 100, 20, "Generic End")
     TextGadget(#Text_em_end, 210, 93, 100, 20, "Emission End [nm]")
     ButtonGadget(#Button_import_samples, 80, 120, 130, 20, "Import Sample Files")      
   EndIf
@@ -292,7 +292,7 @@ Procedure import_file_generic()
   tempf.s
   temp.d
   
-  tempf=OpenFileRequester("Select Sample File",directory+"*.*","CSV (*.csv)|*.csv|TXT (*.txt)|*.txt|Alle Dateien (*.*)|*.*",0,#PB_Requester_MultiSelection)
+  tempf=OpenFileRequester("Select Sample File",directory+"*.*","Alle Dateien (*.*)|*.*|CSV (*.csv)|*.csv|TXT (*.txt)|*.txt",0,#PB_Requester_MultiSelection)
   If tempf
     directory=GetPathPart(tempf)
   Else  
@@ -326,28 +326,30 @@ Procedure import_file_generic()
   ReadFile(0,files(k-1))
   tempf=ReadString(0)
   separator=get_separator(tempf)
+
   n_ex=CountString(tempf,separator)-1
-  i=-1
-  If ex_start<ValD(StringField(tempf,2,separator)):ex_start=ValD(StringField(tempf,2,separator)):EndIf
-  If ex_end>ValD(StringField(tempf,n_ex+2,separator)):ex_end=ValD(StringField(tempf,n_ex+2,separator)):EndIf
-  Repeat
-    i+1
-  Until i>n_ex Or ValD(StringField(tempf,i+1,separator))>ex_start
-  ex_start_file=i
-  Repeat
-    i+1
-  Until i>n_ex Or ValD(StringField(tempf,i+1,separator))>ex_end
-  ex_end_file=i-1
-  n_ex=ex_end_file-ex_start_file
+  ;i=-1
+  ;If ex_start<ValD(StringField(tempf,2,separator)):ex_start=ValD(StringField(tempf,2,separator)):EndIf
+  ;If ex_end>ValD(StringField(tempf,n_ex+2,separator)):ex_end=ValD(StringField(tempf,n_ex+2,separator)):EndIf
+;   Repeat
+;     i+1
+;   Until i>n_ex Or ValD(StringField(tempf,i+1,separator))>ex_start
+;   ex_start_file=i
+;   Repeat
+;     i+1
+;   Until i>n_ex Or ValD(StringField(tempf,i+1,separator))>ex_end
+;  ex_end_file=i-1
+ ; n_ex=ex_end_file-ex_start_file
   n_em=-1
   Repeat
     tempf=ReadString(0)
     n_em+1
   Until Eof(0) Or tempf=""   
   CloseFile(0); HIIIEIIEIIRIEIIRIERE
-  EndIf
-  
-  Global Dim X.d(n_samp,n_em,n_ex)
+EndIf
+
+Global Dim X.d(n_samp,n_em,n_ex)
+Global Dim missing.d(n_em,n_ex)
   Global Dim blank.d(0,n_em,n_ex)
   Global Dim E.d(n_samp,n_em,n_ex)
   Global Dim X_recon.d(n_samp,n_em,n_ex)
@@ -368,6 +370,7 @@ Procedure import_file_generic()
   Global Dim C_sd.d(n_ex,n_comp)
   Global Dim C.d(n_ex,n_comp)
   Global Dim X_origin.d(n_samp,n_em,n_ex)
+  Global Dim HIX.d(n_samp)
   Global Dim core.d(n_comp,n_comp,n_comp)
   Global Dim fixed.i(n_comp)
   Global Dim scale_em.d(n_em)
@@ -393,12 +396,12 @@ Procedure import_file_generic()
     If filefound
       tempf=ReadString(0)      
       For i=0 To n_ex
-        scale_ex(i)=ValD(StringField(tempf,1+i+ex_start_file,separator))
+        scale_ex(i)=ValD(StringField(tempf,2+n_ex-i,separator))
       Next i
       tempf=ReadString(0)
       For i=0 To n_em
         For j=0 To n_ex
-          X(k,i,j)=ValD(StringField(tempf,j+1+ex_start_file,separator))          
+          X(k,i,j)=ValD(StringField(tempf,2+n_ex-j,separator))          
         Next j
         scale_em(i)=ValD(StringField(tempf,1,separator))
         tempf=ReadString(0)
@@ -407,20 +410,77 @@ Procedure import_file_generic()
     EndIf
     
   Next k
-  CopyArray(X(),X_origin())
   
+  
+
+
+For i=0 To n_samp
+  files(i)=RemoveString(GetFilePart(files(i)),".csv")
+Next i  
+
+em_start.d=scale_em(0)
+ex_start.d=scale_ex(0)
+em_step.d=(scale_em(n_em)-scale_em(0))/n_em
+ex_step.d=(scale_ex(n_ex)-scale_ex(0))/n_ex
+   width_first_order_rayleigh.i=30
+   width_first_order_raman.i=9
+   width_second_order_rayleigh.i=40
+   width_second_order_raman.i=12
+
+   For i=0 To n_em     
+     lambda_em.d=i*em_step+em_start
+        For j=0 To n_ex             
+          lambda_ex.d=j*ex_step+ex_start  
+          raman.d=10000000/(10000000/lambda_ex-3400)   
+          ;If Abs(lambda_em-lambda_ex)<width_first_order_rayleigh Or Abs(lambda_em-2*lambda_ex)<width_second_order_rayleigh Or Abs(lambda_em-raman)<width_first_order_raman Or Abs(lambda_em-2*raman)<width_second_order_raman Or (lambda_em<lambda_ex And lambda_ex-lambda_em<40)
+             If Abs(lambda_em-lambda_ex)<width_first_order_rayleigh Or Abs(lambda_em-2*lambda_ex)<width_second_order_rayleigh 
+            
+            missing(i,j)=1
+          Else 
+            missing(i,j)=0  
+          EndIf
+        Next j
+      Next i
+      
+   For k=0 To n_samp     
+     For i=0 To n_em
+       lambda_em.d=i*em_step+em_start
+        For j=0 To n_ex
+          lambda_ex.d=j*ex_step+ex_start  
+          If lambda_em<lambda_ex
+            X(k,i,j)=0
+          EndIf      
+          If lambda_em>2*lambda_ex
+            X(k,i,j)=0
+          EndIf    
+        Next j
+
+      Next i    
+  Next k
+      
+      
+   
+      
+    
+    CopyArray(X(),X_origin())
+    
+squaresum=0
 mean=0
 count=0
+mean=0
 
 max.d=-Pow(10,30)
 min.d=Pow(10,30)
 For i=0 To n_samp
   For j=0 To n_em
     For k=0 To n_ex
+      If Not missing(j,k)
         If X(i,j,k)<min:min=X(i,j,k):EndIf
         If X(i,j,k)>max:max=X(i,j,k):EndIf
-      mean+X(i,j,k)
-      count+1
+        mean+X(i,j,k)
+        squaresum+Pow(X(i,j,k),2)
+        count+1
+      EndIf  
     Next k
   Next j
 Next i
@@ -431,15 +491,16 @@ totvar=0
 For i=0 To n_samp
   For j=0 To n_em
     For k=0 To n_ex
-      totvar+Pow(X(i,j,k)-mean,2)
+       If Not missing(j,k)
+         totvar+Pow(X(i,j,k)-mean,2)
+       EndIf  
     Next k
   Next j
 Next i
 
-For i=0 To n_samp
-  files(i)=RemoveString(GetFilePart(files(i)),".csv")
-Next i  
-
+    
+    CallDebugger
+    
 EndProcedure
 
 Procedure Import_file()  
@@ -615,7 +676,7 @@ Procedure Import_file()
       For i=0 To n_em
         For k=0 To n_samp_file 
           For j=0 To n_ex
-            X(k+skip,i,j)=ValD(StringField(tempf,k*(n_ex_file+1)+j+2+ex_diff,","))  ;j+2 für erste Säule  ; 8 merken
+            X(k+skip,i,j)=ValD(StringField(tempf,k*(n_ex_file+1)+j+2+ex_diff,","))  ;j+2 fÃ¼r erste SÃ¤ule  ; 8 merken
      
         ;If (j=16 And i=0) Or (j=17 And (i=0 Or i=1)):X(k,i,j)=0:EndIf
           Next j
@@ -680,13 +741,16 @@ Procedure Import_file()
       Next k
       CloseFile(0)
     EndIf    
-    CallDebugger
+    
     
     
     For k=0 To n_samp
       For i=0 To n_em
         For j=0 To n_ex
-          X(k,i,j)=X(k,i,j)*Log(10)*absorb(k,(ex_start-abs_start+j*ex_step)/abs_step,0)/(1-Pow(10,-absorb(k,(ex_start-abs_start+j*ex_step)/abs_step,0)))*Pow(10,0.13*absorb(k,(em_start-abs_start+i*em_step)/abs_step,0))*Log(10)*0.74*absorb(k,(em_start-abs_start+i*em_step)/abs_step,0)/(1-Pow(10,-0.74*absorb(k,(em_start-abs_start+i*em_step)/abs_step,0)))
+          idx1.i=Round((ex_start-abs_start+j*ex_step)/abs_step,#PB_Round_Nearest)
+          idx2.i=Round((em_start-abs_start+i*em_step)/abs_step,#PB_Round_Nearest)
+                       
+          X(k,i,j)=X(k,i,j)*Log(10)*absorb(k,idx,0)/(1-Pow(10,-absorb(k,idx1,0)))*Pow(10,0.13*absorb(k,idx2,0))*Log(10)*0.74*absorb(k,idx2,0)/(1-Pow(10,-0.74*absorb(k,idx2,0)))
           ;X(k,i,j)=X(k,i,j)*Pow(10,0.5*(absorb(k,(em_start-abs_start+i*em_step)/abs_step,0)+absorb(k,(ex_start-abs_start+j*ex_step)/abs_step,0)));-blank(0,i,j)         
         Next j 
       Next i  
@@ -780,8 +844,7 @@ For i=0 To n_samp
     Next k
   Next j
 Next i
-Debug "totvar"
-Debug totvar
+
 For i=0 To n_samp
   files(i)=RemoveString(GetFilePart(files(i)),".csv")
 Next i  
@@ -1263,8 +1326,9 @@ Procedure draw_plot()
   EndIf
   
   balkenbreite.i=0
-  set_scale()
-  bildchen.l=CreateImage(#PB_Any,breite,550)
+  set_scale() 
+  bildchen=CreateImage(#PB_Any,breite,550)
+
   StartDrawing(ImageOutput(bildchen))
   DrawingMode(#PB_2DDrawing_Default)
   BackColor(RGB(255,255,255))
@@ -1565,15 +1629,19 @@ Procedure draw_plot()
       If GetGadgetState(#Checkbox_rmse)
         For i=0 To n_em
           For j=0 To n_ex
-            Punkt(i*scaleplot_x+100,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(recon(i,j)))
-            Punkt((i+n_em)*scaleplot_x+150,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(resid(i,j)))
+           ; If Not missing(i,j)
+              Punkt(i*scaleplot_x+100,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(recon(i,j)))
+              Punkt((i+n_em)*scaleplot_x+150,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(resid(i,j)))
+           ; EndIf
           Next j  
         Next i
       Else
         For i=0 To n_em
           For j=0 To n_ex
-            Punkt(i*scaleplot_x+100,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(original(i,j)))
-            Punkt((i+n_em)*scaleplot_x+150,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(resid(i,j)))
+           ; If Not missing(i,j)
+              Punkt(i*scaleplot_x+100,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(original(i,j)))
+              Punkt((i+n_em)*scaleplot_x+150,350-j*scaleplot_y,scaleplot_x,scaleplot_y,gradient(resid(i,j)))
+           ; EndIf
           Next j  
         Next i
       EndIf
@@ -2044,7 +2112,7 @@ Procedure export_file()
       If ExamineDirectory(0,temp,"*.*")
         gibtsschon=1
         FinishDirectory(0)
-        If MessageRequester("Warnung","Dateien im Verzeichnis: "+temp+" wirklich überschreiben?",#PB_MessageRequester_YesNo)=#PB_MessageRequester_Yes
+        If MessageRequester("Warnung","Dateien im Verzeichnis: "+temp+" wirklich Ã¼berschreiben?",#PB_MessageRequester_YesNo)=#PB_MessageRequester_Yes
           overwrite=1
           ;DeleteDirectory(temp,"*.*",#PB_FileSystem_Recursive|#PB_FileSystem_Force)
         EndIf
@@ -3086,21 +3154,25 @@ Repeat
     If generic
       HideGadget(#Spin_em_start,1)
       HideGadget(#Spin_em_end,1)
+      HideGadget(#Spin_ex_start,1)
+      HideGadget(#Spin_ex_end,1)
       HideGadget(#Text_em_start,1)
       HideGadget(#Text_em_end,1)
       HideGadget(#Text_ex_start,1)
       HideGadget(#Text_ex_end,1)
-      HideGadget(#Text_generic_start,0)
-      HideGadget(#Text_generic_end,0)
+      ;HideGadget(#Text_generic_start,0)
+      ;HideGadget(#Text_generic_end,0)
     Else
       HideGadget(#Spin_em_start,0)
       HideGadget(#Spin_em_end,0)
+      HideGadget(#Spin_ex_start,0)
+      HideGadget(#Spin_ex_end,0)
       HideGadget(#Text_em_start,0)
       HideGadget(#Text_em_end,0)
       HideGadget(#Text_ex_start,0)
       HideGadget(#Text_ex_end,0)
-      HideGadget(#Text_generic_start,1)
-      HideGadget(#Text_generic_end,1)
+      ;HideGadget(#Text_generic_start,1)
+      ;HideGadget(#Text_generic_end,1)
     EndIf  
   EndIf  
 Until EventGadget()=#Button_import_samples And EventType()=#PB_EventType_LeftClick
@@ -3479,26 +3551,3 @@ export_file()
 shut_down()
 
 
-
-; IDE Options = PureBasic 6.04 LTS (Windows - x64)
-; CursorPosition = 649
-; FirstLine = 176
-; Folding = gAAAA+
-; EnableXP
-; UseIcon = 1294318982_graph.ico
-; Executable = X:\Software\PARAFACv4.1_debug.exe
-; IncludeVersionInfo
-; VersionField0 = 4,1,0,0
-; VersionField1 = 4,1,0,0
-; VersionField2 = Uni Jena
-; VersionField3 = PARAFAC Fluorescence Edition
-; VersionField4 = 4.1
-; VersionField5 = 4.1
-; VersionField6 = PARAFAC Fluorescence Edition
-; VersionField7 = PARAFACFE
-; VersionField8 = pffe
-; VersionField9 = Thomas R.
-; VersionField13 = Thomas.Ritschel@uni-jena.de
-; VersionField15 = VOS_DOS_WINDOWS32
-; VersionField16 = VFT_APP
-; VersionField17 = 0407 German (Standard)
